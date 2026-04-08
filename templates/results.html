@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Results — {{ student.name }}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <nav class="navbar">
+    <span class="brand-nav">🎓 AcadPredict</span>
+    <div>
+      <a href="{{ url_for('dashboard') }}" class="nav-link">← Dashboard</a>
+      <a href="{{ url_for('logout') }}" class="nav-link">Logout</a>
+    </div>
+  </nav>
+  <main class="container">
+    <div class="profile-card">
+      <div class="profile-avatar">{{ student.name[0] }}</div>
+      <div class="profile-info">
+        <h2>{{ student.name }}</h2>
+        <div class="profile-meta">
+          <span>📋 {{ student.enrollment_number }}</span>
+          <span>🎓 Year {{ student.college_year }}</span>
+          <span>🎂 Age {{ student.age }}</span>
+          <span class="attendance-badge {% if student.attendance_percentage < 75 %}low{% else %}good{% endif %}">
+            📅 {{ student.attendance_percentage }}% Attendance
+          </span>
+        </div>
+      </div>
+      <div class="overall-grade">
+        <span class="big-grade grade-{{ overall_grade }}">{{ overall_grade }}</span>
+        <p>{{ overall_avg }} / 110 avg</p>
+      </div>
+    </div>
+
+    {% if failed_subjects %}
+    <div class="alert alert-danger">
+      ⚠️ <strong>Failed Subjects (scored below 44):</strong> {{ failed_subjects | join(', ') }}
+    </div>
+    {% else %}
+    <div class="alert alert-success">✅ Passed all subjects!</div>
+    {% endif %}
+
+    {% if student.attendance_percentage < 75 %}
+    <div class="alert alert-warning">
+      📅 <strong>Low Attendance: {{ student.attendance_percentage }}%</strong>
+      — Minimum 75% required for exam eligibility.
+    </div>
+    {% endif %}
+
+    <h3 class="section-title">📚 Subject-wise Performance</h3>
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Subject</th>
+            <th>Mid-Sem 1 (/30)</th>
+            <th>Mid-Sem 2 (/30)</th>
+            <th>Practical (/50)</th>
+            <th>Total (/110)</th>
+            <th>ML Prediction</th>
+            <th>Grade</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in subject_data %}
+          <tr class="{% if d.failed %}row-fail{% endif %}">
+            <td><strong>{{ d.subject }}</strong></td>
+            <td>{{ d.mid1 }}</td>
+            <td>{{ d.mid2 }}</td>
+            <td>{{ d.practical }}</td>
+            <td><strong>{{ d.total }}</strong></td>
+            <td class="predicted">🤖 {{ d.predicted }}</td>
+            <td><span class="grade-badge grade-{{ d.grade }}">{{ d.grade }}</span></td>
+            <td>
+              {% if d.failed %}<span class="fail-badge">FAIL ❌</span>
+              {% else %}<span class="pass-badge">PASS ✅</span>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="grade-legend">
+      <h4>Grade Scale</h4>
+      <div class="legend-items">
+        <span class="grade-badge grade-O">O ≥ 90%</span>
+        <span class="grade-badge grade-Aplus">A+ ≥ 75%</span>
+        <span class="grade-badge grade-A">A ≥ 60%</span>
+        <span class="grade-badge grade-B">B ≥ 50%</span>
+        <span class="grade-badge grade-C">C ≥ 40%</span>
+        <span class="grade-badge grade-F">F &lt; 40%</span>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

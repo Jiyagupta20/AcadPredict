@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Subject Marks — AcadPredict</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <nav class="navbar">
+    <span class="brand-nav">🎓 AcadPredict</span>
+    <div>
+      <a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a>
+      <a href="{{ url_for('logout') }}" class="nav-link">Logout</a>
+    </div>
+  </nav>
+  <main class="container">
+    <div class="page-header">
+      <h2>📚 Subject-wise Marks Entry</h2>
+      <p>Student: <strong>{{ student.name }}</strong> &nbsp;|&nbsp;
+         Enrollment: <strong>{{ student.enrollment_number }}</strong> &nbsp;|&nbsp;
+         Year: <strong>Year {{ student.college_year }}</strong> &nbsp;|&nbsp;
+         Attendance: <strong>{{ student.attendance_percentage }}%</strong></p>
+    </div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        <div class="alert alert-{{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+    <div class="marks-legend">
+      <span>📝 Mid-Sem 1: max 30</span>
+      <span>📝 Mid-Sem 2: max 30</span>
+      <span>🔬 Practical: max 50</span>
+      <span>📊 Total: max 110 &nbsp;|&nbsp; Pass: ≥ 44</span>
+    </div>
+    <form method="POST">
+      {% for subject in subjects %}
+      <div class="subject-card">
+        <div class="subject-header">
+          <h3>{{ loop.index }}. {{ subject }}</h3>
+          <span class="subject-badge">Max: 110 marks</span>
+        </div>
+        <div class="marks-grid">
+          <div class="form-group">
+            <label>Mid-Sem 1 <small>(/ 30)</small></label>
+            <input type="number" name="{{ subject }}_mid1"
+                   min="0" max="30" step="0.5" value="0" required>
+          </div>
+          <div class="form-group">
+            <label>Mid-Sem 2 <small>(/ 30)</small></label>
+            <input type="number" name="{{ subject }}_mid2"
+                   min="0" max="30" step="0.5" value="0" required>
+          </div>
+          <div class="form-group">
+            <label>Practical Exam <small>(/ 50)</small></label>
+            <input type="number" name="{{ subject }}_practical"
+                   min="0" max="50" step="0.5" value="0" required>
+          </div>
+          <div class="form-group">
+            <label>Live Total</label>
+            <input type="text" id="total_{{ loop.index }}" value="0 / 110" readonly>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+      <div class="form-actions">
+        <button type="submit" class="btn-primary">🤖 Predict & Save Results →</button>
+      </div>
+    </form>
+  </main>
+  <script>
+    document.querySelectorAll('.subject-card').forEach((card, idx) => {
+      const inputs  = card.querySelectorAll('input[type="number"]');
+      const totalEl = document.getElementById(`total_${idx + 1}`);
+      inputs.forEach(inp => {
+        inp.addEventListener('input', () => {
+          let sum = 0;
+          inputs.forEach(i => sum += parseFloat(i.value) || 0);
+          totalEl.value = `${sum.toFixed(1)} / 110`;
+          totalEl.style.color = sum < 44 ? '#e74c3c' : '#2ecc71';
+        });
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard — AcadPredict</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <nav class="navbar">
+    <span class="brand-nav">🎓 AcadPredict</span>
+    <div>
+      <a href="{{ url_for('detailed_report') }}" class="nav-link">Detailed Report</a>
+      <a href="{{ url_for('student_info') }}" class="btn-sm">+ Add Student</a>
+      <span class="nav-link">👤 {{ current_user.username }}</span>
+      <a href="{{ url_for('logout') }}" class="nav-link">Logout</a>
+    </div>
+  </nav>
+  <main class="container">
+    <div class="page-header">
+      <h2>📊 Student Dashboard</h2>
+      <p>All registered students and their performance overview</p>
+    </div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        <div class="alert alert-{{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+    {% if stats %}
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>#</th><th>Name</th><th>Enrollment</th><th>Year</th>
+            <th>Age</th><th>Attendance</th><th>Avg Marks</th>
+            <th>Grade</th><th>Failed Subjects</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in stats %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td><strong>{{ item.student.name }}</strong></td>
+            <td>{{ item.student.enrollment_number }}</td>
+            <td>Year {{ item.student.college_year }}</td>
+            <td>{{ item.student.age }}</td>
+            <td>
+              <span class="attendance-badge {% if item.student.attendance_percentage < 75 %}low{% else %}good{% endif %}">
+                {{ item.student.attendance_percentage }}%
+              </span>
+            </td>
+            <td>{{ item.avg_total }} / 110</td>
+            <td><span class="grade-badge grade-{{ item.grade }}">{{ item.grade }}</span></td>
+            <td>
+              {% if item.failed_count > 0 %}
+                <span class="fail-badge">{{ item.failed_count }} Failed ❌</span>
+              {% else %}
+                <span class="pass-badge">All Clear ✅</span>
+              {% endif %}
+            </td>
+            <td>
+              <a href="{{ url_for('results', student_id=item.student.id) }}" class="btn-sm">View</a>
+              <form method="POST"
+                    action="{{ url_for('delete_student', student_id=item.student.id) }}"
+                    style="display:inline"
+                    onsubmit="return confirm('Delete this student?')">
+                <button type="submit" class="btn-sm btn-danger">Del</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <p>🎓 No students yet. <a href="{{ url_for('student_info') }}">Add your first student →</a></p>
+    </div>
+    {% endif %}
+  </main>
+</body>
+</html>

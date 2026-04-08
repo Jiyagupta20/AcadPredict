@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Detailed Student Report — AcadPredict</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <nav class="navbar">
+    <span class="brand-nav">🎓 AcadPredict</span>
+    <div>
+      <a href="{{ url_for('dashboard') }}" class="nav-link">← Dashboard</a>
+      <a href="{{ url_for('student_info') }}" class="btn-sm">+ Add Student</a>
+      <span class="nav-link">👤 {{ current_user.username }}</span>
+      <a href="{{ url_for('logout') }}" class="nav-link">Logout</a>
+    </div>
+  </nav>
+  <main class="container">
+    <div class="page-header">
+      <h2>📈 Detailed Academic Report</h2>
+      <p>Comprehensive overview of student averages and overall predicted performance.</p>
+    </div>
+    
+    {% if report_data %}
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Enrollment</th>
+            <th>Avg Mid Sem 1 (/30)</th>
+            <th>Avg Mid Sem 2 (/30)</th>
+            <th>Avg Practical (/50)</th>
+            <th>Attendance</th>
+            <th>Failed Exams</th>
+            <th>Overall Predicted (/110)</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in report_data %}
+          <tr class="{% if item.failed_count > 0 %}row-fail{% endif %}">
+            <td>{{ loop.index }}</td>
+            <td><strong>{{ item.student.name }}</strong></td>
+            <td>{{ item.student.enrollment_number }}</td>
+            <td>{{ item.avg_mid1 }}</td>
+            <td>{{ item.avg_mid2 }}</td>
+            <td>{{ item.avg_practical }}</td>
+            <td>
+              <span class="attendance-badge {% if item.student.attendance_percentage < 75 %}low{% else %}good{% endif %}">
+                {{ item.student.attendance_percentage }}%
+              </span>
+            </td>
+            <td>
+              {% if item.failed_count > 0 %}
+                <span class="fail-badge">{{ item.failed_count }} ❌</span>
+              {% else %}
+                <span class="pass-badge">0 ✅</span>
+              {% endif %}
+            </td>
+            <td class="predicted">🤖 {{ item.overall_pred }}</td>
+            <td>
+              <a href="{{ url_for('results', student_id=item.student.id) }}" class="btn-sm">View Details</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <p>🎓 No complete student records yet. Add a student and their marks first.</p>
+      <a href="{{ url_for('student_info') }}" class="btn-sm">+ Add Student</a>
+    </div>
+    {% endif %}
+  </main>
+</body>
+</html>
