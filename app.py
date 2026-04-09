@@ -13,8 +13,12 @@ login_manager = LoginManager(app)
 login_manager.login_view    = 'login'
 login_manager.login_message = 'Please log in first.'
 
-SUBJECTS = ['Mathematics', 'Physics', 'Chemistry',
-            'Computer Science', 'English', 'Electronics']
+YEAR_SUBJECTS = {
+    1: ['Mathematics I', 'Physics', 'Chemistry', 'Engineering Drawing', 'English'],
+    2: ['Data Structures', 'Digital Logic', 'Mathematics III', 'Object-Oriented Programming', 'Electronics'],
+    3: ['Operating Systems', 'Database Systems', 'Computer Networks', 'Theory of Computation', 'Software Engineering'],
+    4: ['Artificial Intelligence', 'Machine Learning', 'Cloud Computing', 'System Security', 'Capstone Project']
+}
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -99,9 +103,10 @@ def subject_entry():
         flash('Enter student info first.', 'warning')
         return redirect(url_for('student_info'))
     student = Student.query.get_or_404(sid)
+    subjects = YEAR_SUBJECTS.get(student.college_year, YEAR_SUBJECTS[1])
     if request.method == 'POST':
         SubjectRecord.query.filter_by(student_id=student.id).delete()
-        for subj in SUBJECTS:
+        for subj in subjects:
             mid1      = float(request.form.get(f'{subj}_mid1', 0))
             mid2      = float(request.form.get(f'{subj}_mid2', 0))
             practical = float(request.form.get(f'{subj}_practical', 0))
@@ -120,7 +125,7 @@ def subject_entry():
         db.session.commit()
         flash('Marks saved! Prediction complete 🎯', 'success')
         return redirect(url_for('results', student_id=student.id))
-    return render_template('subject_entry.html', student=student, subjects=SUBJECTS)
+    return render_template('subject_entry.html', student=student, subjects=subjects)
 
 # ── Dashboard ──────────────────────────────────────────────────
 @app.route('/dashboard')
