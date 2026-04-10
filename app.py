@@ -1,4 +1,6 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, make_response
+import csv
+import io
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from database import db, User, Student, SubjectRecord
 from model import predict_score, calculate_grade, train_model
@@ -194,6 +196,75 @@ def delete_student(student_id):
     db.session.commit()
     flash(f'{s.name} deleted.', 'info')
     return redirect(url_for('dashboard'))
+
+# ── Export CSV ──────────────────────────────────────────────────
+@app.route('/export/students')
+@login_required
+def export_students():
+    students = Student.query.all()
+    
+    # Subject mappings for CSV columns
+    mapping = {
+        'Math': ['Math'],
+        'Physics': ['Physics'],
+        'Chemistry': ['Chemistry'],
+        'CS': ['Computer', 'Data Structures', 'Digital Logic', 'Programming', 'Systems', 'Networks', 'Theory', 'Software', 'Artificial', 'Machine', 'Cloud', 'Security', 'Capstone'],
+        'English': ['English'],
+        'Electronics': ['Electronics']
+    }
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Header
+    header = [
+        'Student Name', 'Age', 'College Year', 'Attendance %',
+        'Math Mid', 'Math Practical', 'Physics Mid', 'Physics Practical',
+        'Chemistry Mid', 'Chemistry Practical', 'CS Mid', 'CS Practical',
+        'English Mid', 'English Practical', 'Electronics Mid', 'Electronics Practical',
+        'Predicted Score', 'Grade'
+    ]
+    writer.writerow(header)
+
+    for s in students:
+        recs = SubjectRecord.query.filter_by(student_id=s.id).all()
+        
+        # Helper to get marks for a subject category
+        def get_cat_marks(keywords):
+            for r in recs:
+                if any(kw.lower() in r.subject_name.lower() for kw in keywords):
+                    return r.mid_sem1_marks + r.mid_sem2_marks, r.practical_marks
+            return 0.0, 0.0
+
+        m_mid, m_prac = get_cat_marks(mapping['Math'])
+        p_mid, p_prac = get_cat_marks(mapping['Physics'])
+        c_mid, c_prac = get_cat_marks(mapping['Chemistry'])
+        cs_mid, cs_prac = get_cat_marks(mapping['CS'])
+        e_mid, e_prac = get_cat_marks(mapping['English'])
+        el_mid, el_prac = get_cat_marks(mapping['Electronics'])
+
+        # Overall Pred and Grade (Average logic)
+        avg_total = sum(r.total_marks for r in recs) / len(recs) if recs else 0
+        avg_mid1 = sum(r.mid_sem1_marks for r in recs) / len(recs) if recs else 0
+        avg_mid2 = sum(r.mid_sem2_marks for r in recs) / len(recs) if recs else 0
+        avg_prac = sum(r.practical_marks for r in recs) / len(recs) if recs else 0
+        
+        pred = predict_score(avg_mid1, avg_mid2, avg_prac, s.attendance_percentage) if recs else 0
+        grade = calculate_grade(avg_total) if recs else '-'
+
+        row = [
+            s.name, s.age, s.college_year, s.attendance_percentage,
+            m_mid, m_prac, p_mid, p_prac,
+            c_mid, c_prac, cs_mid, cs_prac,
+            e_mid, e_prac, el_mid, el_prac,
+            pred, grade
+        ]
+        writer.writerow(row)
+
+    response = make_response(output.getvalue())
+    response.headers["Content-Disposition"] = "attachment; filename=students_export.csv"
+    response.headers["Content-type"] = "text/csv"
+    return response
 
 # ── Run ────────────────────────────────────────────────────────
 if __name__ == '__main__':
