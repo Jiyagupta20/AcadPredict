@@ -27,9 +27,20 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
 
 /* LAYOUT */
 .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
-.page-header { margin-bottom: 2rem; }
+.page-header { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: flex-end; 
+  margin-bottom: 2rem; 
+  gap: 1.5rem; 
+  flex-wrap: wrap;
+}
 .page-header h2 { font-size: 1.8rem; font-weight: 700; }
 .page-header p { color: var(--muted); margin-top: .4rem; }
+.header-actions { display: flex; align-items: center; gap: .8rem; }
+.search-container input { width: 300px; padding: .5rem 1rem; }
+.btn-export { background: rgba(0,210,255,.1); border-color: var(--accent2); color: var(--accent2); }
+.btn-export:hover { background: var(--accent2); color: #000; border-color: var(--accent2); }
 
 /* FORMS */
 .form-card { background: var(--surface); border: 1px solid #2d3056; border-radius: var(--radius); padding: 2rem; }
