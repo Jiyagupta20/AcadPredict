@@ -18,8 +18,16 @@
   </nav>
   <main class="container">
     <div class="page-header">
-      <h2>📊 Student Dashboard</h2>
-      <p>All registered students and their performance overview</p>
+      <div class="header-content">
+        <h2>📊 Student Dashboard</h2>
+        <p>All registered students and their performance overview</p>
+      </div>
+      <div class="header-actions">
+        <div class="search-container">
+          <input type="text" id="studentSearch" placeholder="🔍 Search student name..." autocomplete="off">
+        </div>
+        <a href="{{ url_for('export_students') }}" class="btn-sm btn-export">📥 Export CSV</a>
+      </div>
     </div>
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% for cat, msg in messages %}
@@ -77,6 +85,26 @@
       <p>🎓 No students yet. <a href="{{ url_for('student_info') }}">Add your first student →</a></p>
     </div>
     {% endif %}
-  </main>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const searchInput = document.getElementById('studentSearch');
+      const tableRows = document.querySelectorAll('.data-table tbody tr');
+
+      if (searchInput) {
+        searchInput.addEventListener('input', () => {
+          const query = searchInput.value.toLowerCase().strip();
+          tableRows.forEach(row => {
+            const name = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+            row.style.display = name.includes(query) ? '' : 'none';
+          });
+        });
+      }
+    });
+
+    // Custom strip for JS
+    String.prototype.strip = function() {
+      return this.trim();
+    };
+  </script>
 </body>
 </html>
