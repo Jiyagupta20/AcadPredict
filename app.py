@@ -15,12 +15,12 @@ login_manager = LoginManager(app)
 login_manager.login_view    = 'login'
 login_manager.login_message = 'Please log in first.'
 
-YEAR_SUBJECTS = {
-    1: ['Mathematics I', 'Physics', 'Chemistry', 'Engineering Drawing', 'English'],
-    2: ['Data Structures', 'Digital Logic', 'Mathematics III', 'Object-Oriented Programming', 'Electronics'],
-    3: ['Operating Systems', 'Database Systems', 'Computer Networks', 'Theory of Computation', 'Software Engineering'],
-    4: ['Artificial Intelligence', 'Machine Learning', 'Cloud Computing', 'System Security', 'Capstone Project']
-}
+SUBJECTS = ["Mathematics", "Physics", "Chemistry", "Computer Science", "English", "Electronics"]
+
+@app.context_processor
+def inject_subjects():
+    """Expose SUBJECTS to all templates automatically."""
+    return dict(SUBJECTS=SUBJECTS)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -105,7 +105,7 @@ def subject_entry():
         flash('Enter student info first.', 'warning')
         return redirect(url_for('student_info'))
     student = Student.query.get_or_404(sid)
-    subjects = YEAR_SUBJECTS.get(student.college_year, YEAR_SUBJECTS[1])
+    subjects = SUBJECTS
     if request.method == 'POST':
         SubjectRecord.query.filter_by(student_id=student.id).delete()
         for subj in subjects:
@@ -204,11 +204,13 @@ def export_students():
     students = Student.query.all()
     
     # Subject mappings for CSV columns
+    # Subject mappings for CSV categories based on the master list
+    # We include some keywords for legacy data matching
     mapping = {
-        'Math': ['Math'],
+        'Mathematics': ['Math', 'Mathematics'],
         'Physics': ['Physics'],
         'Chemistry': ['Chemistry'],
-        'CS': ['Computer', 'Data Structures', 'Digital Logic', 'Programming', 'Systems', 'Networks', 'Theory', 'Software', 'Artificial', 'Machine', 'Cloud', 'Security', 'Capstone'],
+        'Computer Science': ['Computer', 'CS', 'Data Structures', 'Digital Logic', 'Programming', 'Systems', 'Networks', 'Theory', 'Software', 'Artificial', 'Machine', 'Cloud', 'Security', 'Capstone'],
         'English': ['English'],
         'Electronics': ['Electronics']
     }
@@ -216,14 +218,11 @@ def export_students():
     output = io.StringIO()
     writer = csv.writer(output)
     
-    # Header
-    header = [
-        'Student Name', 'Age', 'College Year', 'Attendance %',
-        'Math Mid', 'Math Practical', 'Physics Mid', 'Physics Practical',
-        'Chemistry Mid', 'Chemistry Practical', 'CS Mid', 'CS Practical',
-        'English Mid', 'English Practical', 'Electronics Mid', 'Electronics Practical',
-        'Predicted Score', 'Grade'
-    ]
+    # Dynamic header based on SUBJECTS
+    header = ['Student Name', 'Age', 'College Year', 'Attendance %']
+    for subj in SUBJECTS:
+        header.extend([f'{subj} Mid', f'{subj} Practical'])
+    header.extend(['Predicted Score', 'Grade'])
     writer.writerow(header)
 
     for s in students:
@@ -236,12 +235,10 @@ def export_students():
                     return r.mid_sem1_marks + r.mid_sem2_marks, r.practical_marks
             return 0.0, 0.0
 
-        m_mid, m_prac = get_cat_marks(mapping['Math'])
-        p_mid, p_prac = get_cat_marks(mapping['Physics'])
-        c_mid, c_prac = get_cat_marks(mapping['Chemistry'])
-        cs_mid, cs_prac = get_cat_marks(mapping['CS'])
-        e_mid, e_prac = get_cat_marks(mapping['English'])
-        el_mid, el_prac = get_cat_marks(mapping['Electronics'])
+        row = [s.name, s.age, s.college_year, s.attendance_percentage]
+        for subj in SUBJECTS:
+            m_mid, m_prac = get_cat_marks(mapping.get(subj, [subj]))
+            row.extend([m_mid, m_prac])
 
         # Overall Pred and Grade (Average logic)
         avg_total = sum(r.total_marks for r in recs) / len(recs) if recs else 0
@@ -252,13 +249,7 @@ def export_students():
         pred = predict_score(avg_mid1, avg_mid2, avg_prac, s.attendance_percentage) if recs else 0
         grade = calculate_grade(avg_total) if recs else '-'
 
-        row = [
-            s.name, s.age, s.college_year, s.attendance_percentage,
-            m_mid, m_prac, p_mid, p_prac,
-            c_mid, c_prac, cs_mid, cs_prac,
-            e_mid, e_prac, el_mid, el_prac,
-            pred, grade
-        ]
+        row.extend([pred, grade])
         writer.writerow(row)
 
     response = make_response(output.getvalue())
