@@ -6,7 +6,7 @@ AcadPredict is a Flask-based Academic Performance Prediction System designed to 
 
 - **User Authentication:** Secure login and registration using `flask-login` and `werkzeug` password hashing.
 - **Student Profiling:** Add multiple students with their college year, age, enrollment details, and attendance percentages.
-- **Performance Tracking:** Enter mid-semester and practical marks across various key subjects (Mathematics, Physics, Chemistry, Computer Science, English, Electronics).
+- **Performance Tracking:** Enter mid-semester and practical marks across a consolidated list of 6 key subjects (Mathematics, Physics, Chemistry, Computer Science, English, Electronics), unified across all academic years for simplicity.
 - **Machine Learning Integration:** Uses `scikit-learn`'s Linear Regression model to predict a student's final score based on their mid-sem performance, practical marks, and attendance.
 - **Grades and Diagnostics:** Automatically calculates cumulative grades and indicates failed subjects to identify areas that need improvement.
 - **Real-time Search:** Filter the student list instantly on the dashboard using the built-in search bar.
