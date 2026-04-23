@@ -34,77 +34,112 @@
         <div class="alert alert-{{ cat }}">{{ msg }}</div>
       {% endfor %}
     {% endwith %}
-    {% if stats %}
-    <div class="table-wrapper">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>#</th><th>Name</th><th>Enrollment</th><th>Year</th>
-            <th>Age</th><th>Attendance</th><th>Avg Marks</th>
-            <th>Grade</th><th>Failed Subjects</th><th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for item in stats %}
-          <tr>
-            <td>{{ loop.index }}</td>
-            <td><strong>{{ item.student.name }}</strong></td>
-            <td>{{ item.student.enrollment_number }}</td>
-            <td>Year {{ item.student.college_year }}</td>
-            <td>{{ item.student.age }}</td>
-            <td>
-              <span class="attendance-badge {% if item.student.attendance_percentage < 75 %}low{% else %}good{% endif %}">
-                {{ item.student.attendance_percentage }}%
-              </span>
-            </td>
-            <td>{{ item.avg_total }} / 110</td>
-            <td><span class="grade-badge grade-{{ item.grade }}">{{ item.grade }}</span></td>
-            <td>
-              {% if item.failed_count > 0 %}
-                <span class="fail-badge">{{ item.failed_count }} Failed ❌</span>
-              {% else %}
-                <span class="pass-badge">All Clear ✅</span>
-              {% endif %}
-            </td>
-            <td>
-              <a href="{{ url_for('results', student_id=item.student.id) }}" class="btn-sm">View</a>
-              <form method="POST"
-                    action="{{ url_for('delete_student', student_id=item.student.id) }}"
-                    style="display:inline"
-                    onsubmit="return confirm('Delete this student?')">
-                <button type="submit" class="btn-sm btn-danger">Del</button>
-              </form>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+    {% if grouped_stats %}
+      {% for year in sorted_years %}
+      <div class="year-section" id="year-{{ year }}">
+        <div class="accordion-header">
+          <h3 class="year-title">📅 Year {{ year }}</h3>
+          <span class="accordion-icon">▼</span>
+        </div>
+        <div class="accordion-content">
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>#</th><th>Name</th><th>Enrollment</th>
+                  <th>Age</th><th>Attendance</th><th>Avg Marks</th>
+                  <th>Grade</th><th>Failed Subjects</th><th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in grouped_stats[year] %}
+                <tr>
+                  <td>{{ loop.index }}</td>
+                  <td><strong>{{ item.student.name }}</strong></td>
+                  <td>{{ item.student.enrollment_number }}</td>
+                  <td>{{ item.student.age }}</td>
+                  <td>
+                    <span class="attendance-badge {% if item.student.attendance_percentage < 75 %}low{% else %}good{% endif %}">
+                      {{ item.student.attendance_percentage }}%
+                    </span>
+                  </td>
+                  <td>{{ item.avg_total }} / 110</td>
+                  <td><span class="grade-badge grade-{{ item.grade }}">{{ item.grade }}</span></td>
+                  <td>
+                    {% if item.failed_count > 0 %}
+                      <span class="fail-badge">{{ item.failed_count }} Failed ❌</span>
+                    {% else %}
+                      <span class="pass-badge">All Clear ✅</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <a href="{{ url_for('results', student_id=item.student.id) }}" class="btn-sm">View</a>
+                    <form method="POST"
+                          action="{{ url_for('delete_student', student_id=item.student.id) }}"
+                          style="display:inline"
+                          onsubmit="return confirm('Delete this student?')">
+                      <button type="submit" class="btn-sm btn-danger">Del</button>
+                    </form>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
     {% else %}
     <div class="empty-state">
       <p>🎓 No students yet. <a href="{{ url_for('student_info') }}">Add your first student →</a></p>
     </div>
     {% endif %}
+  </main>
+
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const searchInput = document.getElementById('studentSearch');
-      const tableRows = document.querySelectorAll('.data-table tbody tr');
+      const yearSections = document.querySelectorAll('.year-section');
 
+      // Accordion Toggle
+      yearSections.forEach(section => {
+        const header = section.querySelector('.accordion-header');
+        header.addEventListener('click', () => {
+          section.classList.toggle('active');
+        });
+      });
+
+      // Search Logic
       if (searchInput) {
         searchInput.addEventListener('input', () => {
-          const query = searchInput.value.toLowerCase().strip();
-          tableRows.forEach(row => {
-            const name = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
-            row.style.display = name.includes(query) ? '' : 'none';
+          const query = searchInput.value.toLowerCase().trim();
+          
+          yearSections.forEach(section => {
+            const tableRows = section.querySelectorAll('.data-table tbody tr');
+            let hasVisibleRows = false;
+
+            tableRows.forEach(row => {
+              const name = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+              const isMatch = name.includes(query);
+              row.style.display = isMatch ? '' : 'none';
+              if (isMatch) hasVisibleRows = true;
+            });
+
+            // If query is not empty and matches found, expand the section
+            if (query !== '' && hasVisibleRows) {
+              section.classList.add('active');
+              section.style.display = '';
+            } else if (query !== '' && !hasVisibleRows) {
+              section.style.display = 'none';
+            } else {
+              // Restore normal visibility if query is empty
+              section.style.display = '';
+              // Optionally keep them collapsed or restore previous state
+            }
           });
         });
       }
     });
-
-    // Custom strip for JS
-    String.prototype.strip = function() {
-      return this.trim();
-    };
   </script>
 </body>
 </html>
