@@ -15,12 +15,17 @@ login_manager = LoginManager(app)
 login_manager.login_view    = 'login'
 login_manager.login_message = 'Please log in first.'
 
-SUBJECTS = ["Mathematics", "Physics", "Chemistry", "Computer Science", "English", "Electronics"]
+YEAR_SUBJECTS = {
+    1: ["Applied Mathematics-I", "Applied Physics-I", "Applied Chemistry-I", "Manufacturing Processes", "Computer AutoCAD", "Communication Skills"],
+    2: ["Data Structures", "Digital Electronics", "Analog Electronics", "Object Oriented Programming", "Mathematics III", "Scientific Computing"],
+    3: ["Algorithms Design", "Operating Systems", "Database Management", "Computer Networks", "Theory of Computation", "Software Engineering"],
+    4: ["Artificial Intelligence", "Machine Learning", "Cloud Computing", "Distributed Systems", "Information Security", "Big Data Analytics"]
+}
 
 @app.context_processor
 def inject_subjects():
-    """Expose SUBJECTS to all templates automatically."""
-    return dict(SUBJECTS=SUBJECTS)
+    """Expose YEAR_SUBJECTS to all templates automatically."""
+    return dict(YEAR_SUBJECTS=YEAR_SUBJECTS)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -105,7 +110,7 @@ def subject_entry():
         flash('Enter student info first.', 'warning')
         return redirect(url_for('student_info'))
     student = Student.query.get_or_404(sid)
-    subjects = SUBJECTS
+    subjects = YEAR_SUBJECTS.get(student.college_year, [])
     if request.method == 'POST':
         SubjectRecord.query.filter_by(student_id=student.id).delete()
         for subj in subjects:
@@ -133,16 +138,26 @@ def subject_entry():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    students = Student.query.all()
-    stats = []
+    students = Student.query.order_by(Student.college_year, Student.enrollment_number).all()
+    grouped_stats = {}
     for s in students:
         recs    = SubjectRecord.query.filter_by(student_id=s.id).all()
         failed  = sum(1 for r in recs if r.is_failed)
         avg     = sum(r.total_marks for r in recs)/len(recs) if recs else 0
-        stats.append({'student': s, 'failed_count': failed,
-                       'avg_total': round(avg,1),
-                       'grade': calculate_grade(avg) if recs else '-'})
-    return render_template('dashboard.html', stats=stats)
+        stat = {
+            'student': s, 
+            'failed_count': failed,
+            'avg_total': round(avg, 1),
+            'grade': calculate_grade(avg) if recs else '-'
+        }
+        
+        year = s.college_year
+        if year not in grouped_stats:
+            grouped_stats[year] = []
+        grouped_stats[year].append(stat)
+    
+    sorted_years = sorted(grouped_stats.keys())
+    return render_template('dashboard.html', grouped_stats=grouped_stats, sorted_years=sorted_years)
 
 # ── Detailed Report ──────────────────────────────────────────────
 @app.route('/detailed-report')
@@ -201,59 +216,57 @@ def delete_student(student_id):
 @app.route('/export/students')
 @login_required
 def export_students():
-    students = Student.query.all()
+    students = Student.query.order_by(Student.college_year, Student.enrollment_number).all()
     
-    # Subject mappings for CSV columns
-    # Subject mappings for CSV categories based on the master list
-    # We include some keywords for legacy data matching
-    mapping = {
-        'Mathematics': ['Math', 'Mathematics'],
-        'Physics': ['Physics'],
-        'Chemistry': ['Chemistry'],
-        'Computer Science': ['Computer', 'CS', 'Data Structures', 'Digital Logic', 'Programming', 'Systems', 'Networks', 'Theory', 'Software', 'Artificial', 'Machine', 'Cloud', 'Security', 'Capstone'],
-        'English': ['English'],
-        'Electronics': ['Electronics']
-    }
-
     output = io.StringIO()
     writer = csv.writer(output)
     
-    # Dynamic header based on SUBJECTS
-    header = ['Student Name', 'Age', 'College Year', 'Attendance %']
-    for subj in SUBJECTS:
-        header.extend([f'{subj} Mid', f'{subj} Practical'])
-    header.extend(['Predicted Score', 'Grade'])
-    writer.writerow(header)
-
+    # Group students by year
+    grouped = {}
     for s in students:
-        recs = SubjectRecord.query.filter_by(student_id=s.id).all()
+        if s.college_year not in grouped:
+            grouped[s.college_year] = []
+        grouped[s.college_year].append(s)
+
+    sorted_years = sorted(grouped.keys())
+
+    for year in sorted_years:
+        # Year Header
+        writer.writerow([])
+        writer.writerow([f"--- YEAR {year} STUDENTS ---"])
         
-        # Helper to get marks for a subject category
-        def get_cat_marks(keywords):
-            for r in recs:
-                if any(kw.lower() in r.subject_name.lower() for kw in keywords):
-                    return r.mid_sem1_marks + r.mid_sem2_marks, r.practical_marks
-            return 0.0, 0.0
+        # Dynamic header based on subjects for this year
+        subjects = YEAR_SUBJECTS.get(year, [])
+        header = ['Student Name', 'Enrollment', 'Age', 'Attendance %']
+        for subj in subjects:
+            header.append(f'{subj} (Total)')
+        header.extend(['Predicted Score', 'Overall Grade'])
+        writer.writerow(header)
 
-        row = [s.name, s.age, s.college_year, s.attendance_percentage]
-        for subj in SUBJECTS:
-            m_mid, m_prac = get_cat_marks(mapping.get(subj, [subj]))
-            row.extend([m_mid, m_prac])
+        for s in grouped[year]:
+            recs = SubjectRecord.query.filter_by(student_id=s.id).all()
+            row = [s.name, s.enrollment_number, s.age, s.attendance_percentage]
+            
+            # Map marks to subjects
+            rec_map = {r.subject_name: r for r in recs}
+            for subj in subjects:
+                r = rec_map.get(subj)
+                row.append(r.total_marks if r else 0)
 
-        # Overall Pred and Grade (Average logic)
-        avg_total = sum(r.total_marks for r in recs) / len(recs) if recs else 0
-        avg_mid1 = sum(r.mid_sem1_marks for r in recs) / len(recs) if recs else 0
-        avg_mid2 = sum(r.mid_sem2_marks for r in recs) / len(recs) if recs else 0
-        avg_prac = sum(r.practical_marks for r in recs) / len(recs) if recs else 0
-        
-        pred = predict_score(avg_mid1, avg_mid2, avg_prac, s.attendance_percentage) if recs else 0
-        grade = calculate_grade(avg_total) if recs else '-'
+            # Prediction & Grade
+            avg_total = sum(r.total_marks for r in recs) / len(recs) if recs else 0
+            avg_mid1 = sum(r.mid_sem1_marks for r in recs) / len(recs) if recs else 0
+            avg_mid2 = sum(r.mid_sem2_marks for r in recs) / len(recs) if recs else 0
+            avg_prac = sum(r.practical_marks for r in recs) / len(recs) if recs else 0
+            
+            pred = predict_score(avg_mid1, avg_mid2, avg_prac, s.attendance_percentage) if recs else 0
+            grade = calculate_grade(avg_total) if recs else '-'
 
-        row.extend([pred, grade])
-        writer.writerow(row)
+            row.extend([pred, grade])
+            writer.writerow(row)
 
     response = make_response(output.getvalue())
-    response.headers["Content-Disposition"] = "attachment; filename=students_export.csv"
+    response.headers["Content-Disposition"] = "attachment; filename=students_yearwise_export.csv"
     response.headers["Content-type"] = "text/csv"
     return response
 
